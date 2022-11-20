@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 
 import 'controller.dart';
 
+/// todo
+///
+/// To better understand the purpose of any parameters that are not documented,
+/// you can refer to the [ListView.builder] documentation.
 class QueryStreamListView<T> extends StatelessWidget {
   final Controller<T> controller;
   final Widget Function(BuildContext, T) itemBuilder;
@@ -30,10 +34,23 @@ class QueryStreamListView<T> extends StatelessWidget {
 
   QueryStreamListView({
     super.key,
-    required Query<T> initialQuery,
-    required String orderBy,
-    int pageSize = 20,
+
+    /// todo
     double minScrollExtentLeft = 500,
+
+    /// todo
+    required Query<Map<String, dynamic>> initialQuery,
+
+    /// todo
+    required String orderBy,
+
+    /// todo
+    int pageSize = 20,
+
+    /// todo
+    required T Function(Map<String, dynamic>) itemFromJson,
+
+    /// todo
     required this.itemBuilder,
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
@@ -53,10 +70,11 @@ class QueryStreamListView<T> extends StatelessWidget {
     this.restorationId,
     this.clipBehavior = Clip.hardEdge,
   }) : controller = Controller<T>(
+          minScrollExtentLeft: minScrollExtentLeft,
           initialQuery: initialQuery,
           orderBy: orderBy,
           pageSize: pageSize,
-          minScrollExtentLeft: minScrollExtentLeft,
+          itemFromJson: itemFromJson,
         );
 
   @override
