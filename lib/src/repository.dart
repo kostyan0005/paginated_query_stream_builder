@@ -1,50 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'controller.dart';
-
 class Repository<T> {
   final Query<Map<String, dynamic>> _initialQuery;
   final String _orderBy;
+  final bool _descending;
   final int _pageSize;
-  final T Function(Map<String, dynamic>) _itemFromJson;
 
-  Repository(Controller<T> controller)
-      : _initialQuery = controller.initialQuery,
-        _orderBy = controller.orderBy,
-        _pageSize = controller.pageSize,
-        _itemFromJson = controller.itemFromJson;
+  Repository(
+    this._initialQuery,
+    this._orderBy,
+    this._descending,
+    this._pageSize,
+  );
 
-  dynamic _startAfter;
-  bool isEmpty = false;
-
-  Query<Map<String, dynamic>> _constructQuery() {
-    var query = _initialQuery.orderBy(_orderBy).limit(_pageSize);
-    if (_startAfter != null) query = query.startAfter([_startAfter]);
+  Query<Map<String, dynamic>> constructQuery(dynamic startAt) {
+    var query = _initialQuery
+        .orderBy(_orderBy, descending: _descending)
+        .limit(_pageSize);
+    if (startAt != null) query = query.startAt([startAt]);
     return query;
   }
 
-  Future<void> _getQueryStartingPoint() async {
-    final snap = await _constructQuery().limit(1).get();
-    if (snap.size == 1) {
-      _startAfter = snap.docs.first.data()[_orderBy];
-    } else {
-      isEmpty = true;
-    }
+  Query<Map<String, dynamic>> constructNewItemQuery(dynamic startAt) {
+    var query = _initialQuery.orderBy(_orderBy, descending: _descending);
+    if (startAt != null) query = query.endBefore([startAt]);
+    return query;
   }
 
-  // Think about how the updated combined list would be constructed when one
-  // of the lists gets updated, taking into account that items must be unique.
-
-  // Add a page subscription to the controller.
-  // Mark somehow while loading is happening
-  // (the period until the initial stream snapshot
-  // is received).
-
-  // When the new/updated item portion is received from the subscription,
-  // make sure to not include the items that are already present in the list.
-
-  // The objects of type T should be comparable with each other.
-  // It should be mentioned in the documentation that the type T should correctly
-  // override the equality operator and hashCode getter, or do a similar thing
-  // (such as extending the Equitable class).
+  Future<dynamic> getInitialOrderByValue() async {
+    final snap = await constructQuery(null).limit(1).get();
+    return snap.size == 1 ? snap.docs.first.data()[_orderBy] : null;
+  }
 }

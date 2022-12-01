@@ -45,6 +45,9 @@ class QueryStreamListView<T> extends StatelessWidget {
     required String orderBy,
 
     /// todo
+    bool descending = false,
+
+    /// todo
     int pageSize = 20,
 
     /// todo
@@ -73,6 +76,7 @@ class QueryStreamListView<T> extends StatelessWidget {
           minScrollExtentLeft: minScrollExtentLeft,
           initialQuery: initialQuery,
           orderBy: orderBy,
+          descending: descending,
           pageSize: pageSize,
           itemFromJson: itemFromJson,
         );
@@ -81,14 +85,14 @@ class QueryStreamListView<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        return ValueListenableBuilder<List<T>>(
-          valueListenable: controller,
-          builder: (context, itemList, child) {
+        return AnimatedBuilder(
+          animation: controller,
+          builder: (context, child) {
             return ListView.builder(
               controller: controller.scrollController,
               itemBuilder: (context, index) =>
-                  itemBuilder(context, itemList[index]),
-              itemCount: itemList.length,
+                  itemBuilder(context, controller.items[index]),
+              itemCount: controller.items.length,
               cacheExtent:
                   controller.getCacheExtent(constraints, scrollDirection),
               scrollDirection: scrollDirection,
