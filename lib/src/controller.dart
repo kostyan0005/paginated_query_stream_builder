@@ -31,12 +31,16 @@ class Controller<T> extends ChangeNotifier {
   final List<String> _pageItemIds = [];
   final List<String> _newItemIds = [];
 
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newItemSubscription;
+  List<T> items = [];
   dynamic _startAt;
   bool _isLoading = true;
-  bool _isEmpty = false;
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newItemSubscription;
+  bool hasMore = true;
+  bool hasError = false;
 
-  List<T> get items => [..._newItems, ..._pageItems];
+  int get itemCount => items.length;
+  bool get isEmpty => items.isEmpty && !hasMore;
+  bool get needsPlusOne => hasMore || hasError || isEmpty;
 
   double getCacheExtent(BoxConstraints constraints, Axis scrollDirection) {
     final viewportSize = scrollDirection == Axis.vertical
@@ -45,10 +49,15 @@ class Controller<T> extends ChangeNotifier {
     return viewportSize + minScrollExtentLeft * 2;
   }
 
-  void _notifyEmpty() {
-    _isEmpty = true;
-    _isLoading = false;
+  void _notify() {
+    items = [..._newItems, ..._pageItems];
     notifyListeners();
+  }
+
+  void _notifyEmpty() {
+    hasMore = false;
+    _isLoading = false;
+    _notify();
   }
 
   void _setInitialSubscriptions() async {
@@ -60,18 +69,15 @@ class Controller<T> extends ChangeNotifier {
       _addNextSubscription();
     }
 
-    _newItemSubscription = _repo
-        .constructNewItemQuery(_startAt)
-        .snapshots()
-        .listen(_listenToNewItemUpdates);
+    _addNewItemsSubscription();
   }
 
   void _addNextSubscription() {
     _isLoading = true;
     bool isInitialSnap = true;
 
-    final nextPageSubscription =
-        _repo.constructQuery(_startAt).snapshots().listen((snap) {
+    final nextPageStream = _repo.constructQuery(_startAt).snapshots();
+    final nextPageSubscription = nextPageStream.listen((snap) {
       if (isInitialSnap) {
         final docs = snap.docs;
         final items = docs.map((doc) => itemFromJson(doc.data()));
@@ -107,15 +113,24 @@ class Controller<T> extends ChangeNotifier {
       }
     });
 
+    nextPageSubscription.onError((_) {
+      // todo: handle the error case
+    });
+
     _pageSubscriptions.add(nextPageSubscription);
   }
 
-  void _listenToNewItemUpdates(QuerySnapshot<Map<String, dynamic>> snap) {
-    // todo: define
-  }
+  void _addNewItemsSubscription() {
+    final newItemStream = _repo.constructNewItemQuery(_startAt).snapshots();
+    _newItemSubscription = newItemStream.listen((snap) {
+      // todo: define
+    });
 
-  // Note: the loading indicator will always be displayed (as the last element
-  // of the list) until _isEmpty becomes true.
+    _newItemSubscription!.onError((_) {
+      // todo: handle the error case
+      // todo: with new items, should the error be shown at the top of the list?
+    });
+  }
 
   @override
   void dispose() {

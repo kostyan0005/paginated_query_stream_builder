@@ -50,11 +50,15 @@ class QueryStreamListView<T> extends StatelessWidget {
     /// todo
     int pageSize = 20,
 
+    // todo: add the query options parameter, as the user may want
+    // to get the items only from the server, or something like this
+
     /// todo
     required T Function(Map<String, dynamic>) itemFromJson,
 
     /// todo
     required this.itemBuilder,
+    // todo: add custom overrides of loader, error and empty widgets
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
     this.primary,
@@ -90,9 +94,19 @@ class QueryStreamListView<T> extends StatelessWidget {
           builder: (context, child) {
             return ListView.builder(
               controller: controller.scrollController,
-              itemBuilder: (context, index) =>
-                  itemBuilder(context, controller.items[index]),
-              itemCount: controller.items.length,
+              itemBuilder: (context, index) {
+                if (index < controller.itemCount) {
+                  return itemBuilder(context, controller.items[index]);
+                } else if (controller.hasError) {
+                  return const Icon(Icons.error);
+                } else if (controller.isEmpty) {
+                  return const Text('No items found');
+                } else {
+                  return const CircularProgressIndicator();
+                }
+              },
+              itemCount:
+                  controller.itemCount + (controller.needsPlusOne ? 1 : 0),
               cacheExtent:
                   controller.getCacheExtent(constraints, scrollDirection),
               scrollDirection: scrollDirection,
