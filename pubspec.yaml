@@ -11,7 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cloud_firestore: ^4.1.0
+  cloud_firestore: ^4.2.0
+  logger: ^1.1.0
 
 dev_dependencies:
   flutter_test:

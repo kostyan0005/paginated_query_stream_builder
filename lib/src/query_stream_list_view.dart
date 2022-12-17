@@ -3,17 +3,20 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'controller.dart';
+import 'default_indicators.dart';
+
+// todo: define a parent class with shared params and functionality
 
 /// todo
 ///
 /// To better understand the purpose of any parameters that are not documented,
 /// you can refer to the [ListView.builder] documentation.
 class QueryStreamListView<T> extends StatelessWidget {
-  final Controller<T> controller;
+  final Controller<T> _controller;
   final Widget Function(BuildContext, T) itemBuilder;
-
-  // The rest of the fields are passed to
-  // [ListView.builder] constructor directly.
+  final WidgetBuilder? newPageProgressIndicatorBuilder;
+  final WidgetBuilder? noItemsFoundIndicatorBuilder;
+  final WidgetBuilder? errorIndicatorBuilder;
   final Axis scrollDirection;
   final bool reverse;
   final bool? primary;
@@ -50,15 +53,29 @@ class QueryStreamListView<T> extends StatelessWidget {
     /// todo
     int pageSize = 20,
 
-    // todo: add the query options parameter, as the user may want
-    // to get the items only from the server, or something like this
+    /// todo
+    bool includeMetadataChanges = false,
+
+    /// todo
+    bool allowSnapshotsFromCache = true,
 
     /// todo
     required T Function(Map<String, dynamic>) itemFromJson,
 
     /// todo
     required this.itemBuilder,
-    // todo: add custom overrides of loader, error and empty widgets
+
+    /// todo
+    this.newPageProgressIndicatorBuilder,
+
+    /// todo
+    this.noItemsFoundIndicatorBuilder,
+
+    /// todo
+    this.errorIndicatorBuilder,
+
+    // The rest of the fields are passed to
+    // [ListView.builder] constructor directly.
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
     this.primary,
@@ -76,12 +93,14 @@ class QueryStreamListView<T> extends StatelessWidget {
     this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
     this.restorationId,
     this.clipBehavior = Clip.hardEdge,
-  }) : controller = Controller<T>(
+  }) : _controller = Controller<T>(
           minScrollExtentLeft: minScrollExtentLeft,
           initialQuery: initialQuery,
           orderBy: orderBy,
           descending: descending,
           pageSize: pageSize,
+          includeMetadataChanges: includeMetadataChanges,
+          allowSnapshotsFromCache: allowSnapshotsFromCache,
           itemFromJson: itemFromJson,
         );
 
@@ -90,25 +109,20 @@ class QueryStreamListView<T> extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         return AnimatedBuilder(
-          animation: controller,
+          animation: _controller,
           builder: (context, child) {
+            if (_controller.isEmpty) {
+              return noItemsFoundIndicatorBuilder?.call(context) ??
+                  const DefaultNoItemsFoundIndicator();
+            }
+
             return ListView.builder(
-              controller: controller.scrollController,
-              itemBuilder: (context, index) {
-                if (index < controller.itemCount) {
-                  return itemBuilder(context, controller.items[index]);
-                } else if (controller.hasError) {
-                  return const Icon(Icons.error);
-                } else if (controller.isEmpty) {
-                  return const Text('No items found');
-                } else {
-                  return const CircularProgressIndicator();
-                }
-              },
+              controller: _controller.scrollController,
+              itemBuilder: _buildItem,
               itemCount:
-                  controller.itemCount + (controller.needsPlusOne ? 1 : 0),
+                  _controller.itemCount + (_controller.needsPlusOne ? 1 : 0),
               cacheExtent:
-                  controller.getCacheExtent(constraints, scrollDirection),
+                  _controller.getCacheExtent(constraints, scrollDirection),
               scrollDirection: scrollDirection,
               reverse: reverse,
               primary: primary,
@@ -131,5 +145,18 @@ class QueryStreamListView<T> extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// todo
+  Widget _buildItem(context, index) {
+    if (index < _controller.itemCount) {
+      return itemBuilder(context, _controller.items[index]);
+    } else if (_controller.hasError) {
+      return errorIndicatorBuilder?.call(context) ??
+          const DefaultErrorIndicator();
+    } else {
+      return newPageProgressIndicatorBuilder?.call(context) ??
+          const DefaultNewPageProgressIndicator();
+    }
   }
 }

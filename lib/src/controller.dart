@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 
 import 'repository.dart';
 
+/// todo: fully document this class and its methods
 class Controller<T> extends ChangeNotifier {
   final double minScrollExtentLeft;
   final String orderBy;
   final int pageSize;
+  final bool includeMetadataChanges;
+  final bool allowSnapshotsFromCache;
   final T Function(Map<String, dynamic>) itemFromJson;
   final Repository _repo;
 
@@ -18,6 +22,8 @@ class Controller<T> extends ChangeNotifier {
     required this.orderBy,
     required bool descending,
     required this.pageSize,
+    required this.includeMetadataChanges,
+    required this.allowSnapshotsFromCache,
     required this.itemFromJson,
   }) : _repo = Repository(initialQuery, orderBy, descending, pageSize) {
     _setInitialSubscriptions();
@@ -40,7 +46,8 @@ class Controller<T> extends ChangeNotifier {
 
   int get itemCount => items.length;
   bool get isEmpty => items.isEmpty && !hasMore;
-  bool get needsPlusOne => hasMore || hasError || isEmpty;
+  bool get needsPlusOne => hasMore || hasError;
+  bool get _canLoadMore => !_isLoading && hasMore && !hasError;
 
   double getCacheExtent(BoxConstraints constraints, Axis scrollDirection) {
     final viewportSize = scrollDirection == Axis.vertical
@@ -70,14 +77,20 @@ class Controller<T> extends ChangeNotifier {
     }
 
     _addNewItemsSubscription();
+    scrollController.addListener(_onScrollPositionUpdate);
   }
 
   void _addNextSubscription() {
     _isLoading = true;
     bool isInitialSnap = true;
 
-    final nextPageStream = _repo.constructQuery(_startAt).snapshots();
+    final nextPageStream = _repo
+        .constructQuery(_startAt)
+        .snapshots(includeMetadataChanges: includeMetadataChanges);
+
     final nextPageSubscription = nextPageStream.listen((snap) {
+      if (!allowSnapshotsFromCache && snap.metadata.isFromCache) return;
+
       if (isInitialSnap) {
         final docs = snap.docs;
         final items = docs.map((doc) => itemFromJson(doc.data()));
@@ -89,7 +102,7 @@ class Controller<T> extends ChangeNotifier {
         } else {
           _startAt = docs.last.data()[orderBy];
           _isLoading = false;
-          notifyListeners();
+          _notify();
         }
 
         isInitialSnap = false;
@@ -108,37 +121,57 @@ class Controller<T> extends ChangeNotifier {
             _pageItems.removeAt(itemIndex);
             _pageItemIds.removeAt(itemIndex);
           }
-          notifyListeners();
+          _notify();
         }
       }
-    });
-
-    nextPageSubscription.onError((_) {
-      // todo: handle the error case
-    });
+    })
+      ..onError(_handleError);
 
     _pageSubscriptions.add(nextPageSubscription);
   }
 
   void _addNewItemsSubscription() {
-    final newItemStream = _repo.constructNewItemQuery(_startAt).snapshots();
-    _newItemSubscription = newItemStream.listen((snap) {
-      // todo: define
-    });
+    final newItemStream = _repo
+        .constructNewItemQuery(_startAt)
+        .snapshots(includeMetadataChanges: includeMetadataChanges);
 
-    _newItemSubscription!.onError((_) {
-      // todo: handle the error case
-      // todo: with new items, should the error be shown at the top of the list?
-    });
+    _newItemSubscription = newItemStream.listen((snap) {
+      if (!allowSnapshotsFromCache && snap.metadata.isFromCache) return;
+
+      // todo: define
+    })
+      ..onError(_handleError);
   }
 
-  @override
-  void dispose() {
+  void _onScrollPositionUpdate() {
+    // todo: define
+  }
+
+  void _handleError(dynamic e) {
+    // Notify that there is an error.
+    hasError = true;
+    _isLoading = false;
+    _notify();
+
+    // Cancel all subscriptions.
+    _cancelAllSubscriptions();
+
+    // Log the error to make it visible to the developer.
+    Logger()
+        .e('An error was thrown by one of the streams', e, StackTrace.current);
+  }
+
+  void _cancelAllSubscriptions() {
     _newItemSubscription?.cancel();
     for (final subscription in _pageSubscriptions) {
       subscription.cancel();
     }
     _pageSubscriptions.clear();
+  }
+
+  @override
+  void dispose() {
+    _cancelAllSubscriptions();
     _pageItems.clear();
     _newItems.clear();
     _pageItemIds.clear();
