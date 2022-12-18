@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'controller.dart';
 import 'default_indicators.dart';
 
-// todo: define a parent class with shared params and functionality
-
-/// todo
+///
 ///
 /// To better understand the purpose of any parameters that are not documented,
 /// you can refer to the [ListView.builder] documentation.
@@ -38,40 +36,40 @@ class QueryStreamListView<T> extends StatelessWidget {
   QueryStreamListView({
     super.key,
 
-    /// todo
+    ///
     double minScrollExtentLeft = 500,
 
-    /// todo
+    ///
     required Query<Map<String, dynamic>> initialQuery,
 
-    /// todo
+    ///
     required String orderBy,
 
-    /// todo
+    ///
     bool descending = false,
 
-    /// todo
+    ///
     int pageSize = 20,
 
-    /// todo
+    ///
     bool includeMetadataChanges = false,
 
-    /// todo
+    ///
     bool allowSnapshotsFromCache = true,
 
-    /// todo
+    ///
     required T Function(Map<String, dynamic>) itemFromJson,
 
-    /// todo
+    ///
     required this.itemBuilder,
 
-    /// todo
+    ///
     this.newPageProgressIndicatorBuilder,
 
-    /// todo
+    ///
     this.noItemsFoundIndicatorBuilder,
 
-    /// todo
+    ///
     this.errorIndicatorBuilder,
 
     // The rest of the fields are passed to
@@ -147,7 +145,7 @@ class QueryStreamListView<T> extends StatelessWidget {
     );
   }
 
-  /// todo
+  ///
   Widget _buildItem(context, index) {
     if (index < _controller.itemCount) {
       return itemBuilder(context, _controller.items[index]);

@@ -6,7 +6,7 @@ import 'package:logger/logger.dart';
 
 import 'repository.dart';
 
-/// todo: fully document this class and its methods
+///
 class Controller<T> extends ChangeNotifier {
   final double minScrollExtentLeft;
   final String orderBy;
@@ -14,6 +14,7 @@ class Controller<T> extends ChangeNotifier {
   final bool includeMetadataChanges;
   final bool allowSnapshotsFromCache;
   final T Function(Map<String, dynamic>) itemFromJson;
+
   final Repository _repo;
 
   Controller({
@@ -30,15 +31,17 @@ class Controller<T> extends ChangeNotifier {
   }
 
   final ScrollController scrollController = ScrollController();
+
   final List<StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>
       _pageSubscriptions = [];
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newItemSubscription;
+
+  List<T> items = [];
   final List<T> _pageItems = [];
   final List<T> _newItems = [];
   final List<String> _pageItemIds = [];
   final List<String> _newItemIds = [];
 
-  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _newItemSubscription;
-  List<T> items = [];
   dynamic _startAt;
   bool _isLoading = true;
   bool hasMore = true;
@@ -49,6 +52,7 @@ class Controller<T> extends ChangeNotifier {
   bool get needsPlusOne => hasMore || hasError;
   bool get _canLoadMore => !_isLoading && hasMore && !hasError;
 
+  ///
   double getCacheExtent(BoxConstraints constraints, Axis scrollDirection) {
     final viewportSize = scrollDirection == Axis.vertical
         ? constraints.maxHeight
@@ -56,17 +60,7 @@ class Controller<T> extends ChangeNotifier {
     return viewportSize + minScrollExtentLeft * 2;
   }
 
-  void _notify() {
-    items = [..._newItems, ..._pageItems];
-    notifyListeners();
-  }
-
-  void _notifyEmpty() {
-    hasMore = false;
-    _isLoading = false;
-    _notify();
-  }
-
+  ///
   void _setInitialSubscriptions() async {
     _startAt = await _repo.getInitialOrderByValue();
 
@@ -76,10 +70,11 @@ class Controller<T> extends ChangeNotifier {
       _addNextSubscription();
     }
 
-    _addNewItemsSubscription();
+    _addNewItemSubscription();
     scrollController.addListener(_onScrollPositionUpdate);
   }
 
+  ///
   void _addNextSubscription() {
     _isLoading = true;
     bool isInitialSnap = true;
@@ -109,11 +104,11 @@ class Controller<T> extends ChangeNotifier {
       } else {
         for (final change in snap.docChanges) {
           // Ignore this case, as it is not supported.
-          if (change.type == DocumentChangeType.added) return;
+          if (change.type == DocumentChangeType.added) continue;
 
           final itemIndex = _pageItemIds.indexOf(change.doc.id);
-          // This should not happen if the package usage requirements are met.
-          if (itemIndex == -1) return;
+          // This should not happen if package usage requirements are met.
+          if (itemIndex == -1) continue;
 
           if (change.type == DocumentChangeType.modified) {
             _pageItems[itemIndex] = itemFromJson(change.doc.data()!);
@@ -121,8 +116,8 @@ class Controller<T> extends ChangeNotifier {
             _pageItems.removeAt(itemIndex);
             _pageItemIds.removeAt(itemIndex);
           }
-          _notify();
         }
+        _notify();
       }
     })
       ..onError(_handleError);
@@ -130,7 +125,8 @@ class Controller<T> extends ChangeNotifier {
     _pageSubscriptions.add(nextPageSubscription);
   }
 
-  void _addNewItemsSubscription() {
+  ///
+  void _addNewItemSubscription() {
     final newItemStream = _repo
         .constructNewItemQuery(_startAt)
         .snapshots(includeMetadataChanges: includeMetadataChanges);
@@ -138,20 +134,79 @@ class Controller<T> extends ChangeNotifier {
     _newItemSubscription = newItemStream.listen((snap) {
       if (!allowSnapshotsFromCache && snap.metadata.isFromCache) return;
 
-      // todo: define
+      for (final change in snap.docChanges) {
+        final docId = change.doc.id;
+
+        if (change.type == DocumentChangeType.added) {
+          _newItems.insert(0, itemFromJson(change.doc.data()!));
+          _newItemIds.insert(0, docId);
+          continue;
+        }
+
+        final itemIndex = _newItemIds.indexOf(docId);
+        // This should not happen if package usage requirements are met.
+        if (itemIndex == -1) continue;
+
+        if (change.type == DocumentChangeType.modified) {
+          final updatedItem = itemFromJson(change.doc.data()!);
+          // The only supported repositioning is to the beginning of the list.
+          final shouldReposition = change.oldIndex != change.newIndex &&
+              change.newIndex == 0 &&
+              itemIndex != 0;
+
+          if (shouldReposition) {
+            // Remove the item from the old position and insert it at the
+            // beginning of the list.
+            _newItems.removeAt(itemIndex);
+            _newItemIds.removeAt(itemIndex);
+            _newItems.insert(0, updatedItem);
+            _newItemIds.insert(0, docId);
+          } else {
+            _newItems[itemIndex] = updatedItem;
+          }
+        } else {
+          _newItems.removeAt(itemIndex);
+          _newItemIds.removeAt(itemIndex);
+        }
+      }
+      _notify();
     })
       ..onError(_handleError);
   }
 
+  ///
   void _onScrollPositionUpdate() {
-    // todo: define
+    if (_canLoadMore &&
+        scrollController.position.extentAfter < minScrollExtentLeft) {
+      _addNextSubscription();
+    }
   }
 
+  ///
+  void _notify() {
+    items = [..._newItems, ..._pageItems];
+    notifyListeners();
+  }
+
+  ///
+  void _notifyEmpty() {
+    hasMore = false;
+    _isLoading = false;
+    _notify();
+
+    // Remove the listener, as it is not needed anymore.
+    scrollController.removeListener(_onScrollPositionUpdate);
+  }
+
+  ///
   void _handleError(dynamic e) {
     // Notify that there is an error.
     hasError = true;
     _isLoading = false;
     _notify();
+
+    // Remove the listener, as it is not needed anymore.
+    scrollController.removeListener(_onScrollPositionUpdate);
 
     // Cancel all subscriptions.
     _cancelAllSubscriptions();
@@ -161,6 +216,7 @@ class Controller<T> extends ChangeNotifier {
         .e('An error was thrown by one of the streams', e, StackTrace.current);
   }
 
+  ///
   void _cancelAllSubscriptions() {
     _newItemSubscription?.cancel();
     for (final subscription in _pageSubscriptions) {
@@ -176,6 +232,7 @@ class Controller<T> extends ChangeNotifier {
     _newItems.clear();
     _pageItemIds.clear();
     _newItemIds.clear();
+    scrollController.dispose();
     super.dispose();
   }
 }
