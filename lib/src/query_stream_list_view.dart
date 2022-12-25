@@ -1,20 +1,13 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import 'controller.dart';
-import 'default_indicators.dart';
+import 'query_stream_view.dart';
 
 ///
 ///
 /// To better understand the purpose of any parameters that are not documented,
 /// you can refer to the [ListView.builder] documentation.
-class QueryStreamListView<T> extends StatelessWidget {
-  final Controller<T> _controller;
-  final Widget Function(BuildContext, T) itemBuilder;
-  final WidgetBuilder? newPageProgressIndicatorBuilder;
-  final WidgetBuilder? noItemsFoundIndicatorBuilder;
-  final WidgetBuilder? errorIndicatorBuilder;
+class QueryStreamListView<T> extends QueryStreamView<T> {
   final Axis scrollDirection;
   final bool reverse;
   final bool? primary;
@@ -35,45 +28,18 @@ class QueryStreamListView<T> extends StatelessWidget {
 
   QueryStreamListView({
     super.key,
-
-    ///
-    double minScrollExtentLeft = 500,
-
-    ///
-    required Query<Map<String, dynamic>> initialQuery,
-
-    ///
-    required String orderBy,
-
-    ///
-    bool descending = false,
-
-    ///
-    int pageSize = 20,
-
-    ///
-    bool includeMetadataChanges = false,
-
-    ///
-    bool allowSnapshotsFromCache = true,
-
-    ///
-    required T Function(Map<String, dynamic>) itemFromJson,
-
-    ///
-    required this.itemBuilder,
-
-    ///
-    this.newPageProgressIndicatorBuilder,
-
-    ///
-    this.noItemsFoundIndicatorBuilder,
-
-    ///
-    this.errorIndicatorBuilder,
-
-    // The rest of the fields are passed to
-    // [ListView.builder] constructor directly.
+    required super.initialQuery,
+    required super.orderBy,
+    super.descending,
+    super.pageSize,
+    super.includeMetadataChanges,
+    super.allowSnapshotsFromCache,
+    required super.itemFromJson,
+    required super.itemBuilder,
+    super.newPageProgressIndicatorBuilder,
+    super.noItemsFoundIndicatorBuilder,
+    super.errorIndicatorBuilder,
+    super.minScrollExtentLeft,
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
     this.primary,
@@ -91,70 +57,32 @@ class QueryStreamListView<T> extends StatelessWidget {
     this.keyboardDismissBehavior = ScrollViewKeyboardDismissBehavior.manual,
     this.restorationId,
     this.clipBehavior = Clip.hardEdge,
-  }) : _controller = Controller<T>(
-          minScrollExtentLeft: minScrollExtentLeft,
-          initialQuery: initialQuery,
-          orderBy: orderBy,
-          descending: descending,
-          pageSize: pageSize,
-          includeMetadataChanges: includeMetadataChanges,
-          allowSnapshotsFromCache: allowSnapshotsFromCache,
-          itemFromJson: itemFromJson,
-        );
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            if (_controller.isEmpty) {
-              return noItemsFoundIndicatorBuilder?.call(context) ??
-                  const DefaultNoItemsFoundIndicator();
-            }
-
-            return ListView.builder(
-              controller: _controller.scrollController,
-              itemBuilder: _buildItem,
-              itemCount:
-                  _controller.itemCount + (_controller.needsPlusOne ? 1 : 0),
-              cacheExtent:
-                  _controller.getCacheExtent(constraints, scrollDirection),
-              scrollDirection: scrollDirection,
-              reverse: reverse,
-              primary: primary,
-              physics: physics,
-              shrinkWrap: shrinkWrap,
-              padding: padding,
-              itemExtent: itemExtent,
-              prototypeItem: prototypeItem,
-              findChildIndexCallback: findChildIndexCallback,
-              addAutomaticKeepAlives: addAutomaticKeepAlives,
-              addRepaintBoundaries: addRepaintBoundaries,
-              addSemanticIndexes: addSemanticIndexes,
-              semanticChildCount: semanticChildCount,
-              dragStartBehavior: dragStartBehavior,
-              keyboardDismissBehavior: keyboardDismissBehavior,
-              restorationId: restorationId,
-              clipBehavior: clipBehavior,
-            );
-          },
-        );
-      },
+  Widget getViewBuilder(BoxConstraints constraints) {
+    return ListView.builder(
+      controller: scrollController,
+      itemBuilder: buildItem,
+      itemCount: itemCount,
+      cacheExtent: getCacheExtent(constraints, scrollDirection),
+      scrollDirection: scrollDirection,
+      reverse: reverse,
+      primary: primary,
+      physics: physics,
+      shrinkWrap: shrinkWrap,
+      padding: padding,
+      itemExtent: itemExtent,
+      prototypeItem: prototypeItem,
+      findChildIndexCallback: findChildIndexCallback,
+      addAutomaticKeepAlives: addAutomaticKeepAlives,
+      addRepaintBoundaries: addRepaintBoundaries,
+      addSemanticIndexes: addSemanticIndexes,
+      semanticChildCount: semanticChildCount,
+      dragStartBehavior: dragStartBehavior,
+      keyboardDismissBehavior: keyboardDismissBehavior,
+      restorationId: restorationId,
+      clipBehavior: clipBehavior,
     );
-  }
-
-  ///
-  Widget _buildItem(context, index) {
-    if (index < _controller.itemCount) {
-      return itemBuilder(context, _controller.items[index]);
-    } else if (_controller.hasError) {
-      return errorIndicatorBuilder?.call(context) ??
-          const DefaultErrorIndicator();
-    } else {
-      return newPageProgressIndicatorBuilder?.call(context) ??
-          const DefaultNewPageProgressIndicator();
-    }
   }
 }

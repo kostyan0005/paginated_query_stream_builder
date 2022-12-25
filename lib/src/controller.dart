@@ -8,17 +8,16 @@ import 'repository.dart';
 
 ///
 class Controller<T> extends ChangeNotifier {
-  final double minScrollExtentLeft;
   final String orderBy;
   final int pageSize;
   final bool includeMetadataChanges;
   final bool allowSnapshotsFromCache;
   final T Function(Map<String, dynamic>) itemFromJson;
+  final double minScrollExtentLeft;
 
   final Repository _repo;
 
   Controller({
-    required this.minScrollExtentLeft,
     required Query<Map<String, dynamic>> initialQuery,
     required this.orderBy,
     required bool descending,
@@ -26,6 +25,7 @@ class Controller<T> extends ChangeNotifier {
     required this.includeMetadataChanges,
     required this.allowSnapshotsFromCache,
     required this.itemFromJson,
+    required this.minScrollExtentLeft,
   }) : _repo = Repository(initialQuery, orderBy, descending, pageSize) {
     _setInitialSubscriptions();
   }
@@ -51,14 +51,6 @@ class Controller<T> extends ChangeNotifier {
   bool get isEmpty => items.isEmpty && !hasMore;
   bool get needsPlusOne => hasMore || hasError;
   bool get _canLoadMore => !_isLoading && hasMore && !hasError;
-
-  ///
-  double getCacheExtent(BoxConstraints constraints, Axis scrollDirection) {
-    final viewportSize = scrollDirection == Axis.vertical
-        ? constraints.maxHeight
-        : constraints.maxWidth;
-    return viewportSize + minScrollExtentLeft * 2;
-  }
 
   ///
   void _setInitialSubscriptions() async {
