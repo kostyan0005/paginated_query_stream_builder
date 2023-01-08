@@ -1,6 +1,6 @@
 name: paginated_query_stream_builder
 description: The library for building list and grid views from paginated Firestore query streams.
-version: 0.0.1
+version: 0.1.0
 homepage: https://github.com/kostyan0005/paginated_query_stream_builder
 
 environment:
@@ -11,8 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cloud_firestore: ^4.2.0
-  logger: ^1.1.0
+  cloud_firestore: any
+  logger: any
 
 dev_dependencies:
   flutter_test:
