@@ -40,6 +40,7 @@ class QueryStreamListView<T> extends QueryStreamView<T> {
     super.noItemsFoundIndicatorBuilder,
     super.errorIndicatorBuilder,
     super.minScrollExtentLeft,
+    super.showDebugLogs,
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
     this.primary,

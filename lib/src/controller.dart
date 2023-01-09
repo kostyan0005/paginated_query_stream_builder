@@ -14,6 +14,7 @@ class Controller<T> extends ChangeNotifier {
   final bool allowSnapshotsFromCache;
   final T Function(Map<String, dynamic>) itemFromJson;
   final double minScrollExtentLeft;
+  final bool showDebugLogs;
 
   final Repository _repo;
 
@@ -26,6 +27,7 @@ class Controller<T> extends ChangeNotifier {
     required this.allowSnapshotsFromCache,
     required this.itemFromJson,
     required this.minScrollExtentLeft,
+    required this.showDebugLogs,
   }) : _repo = Repository(initialQuery, orderBy, descending, pageSize) {
     _setInitialSubscriptions();
   }
@@ -71,6 +73,8 @@ class Controller<T> extends ChangeNotifier {
     _isLoading = true;
     bool isInitialSnap = true;
 
+    if (showDebugLogs) Logger().d('Loading the next $pageSize items...');
+
     final nextPageStream = _repo
         .constructQuery(_startAt)
         .snapshots(includeMetadataChanges: includeMetadataChanges);
@@ -84,7 +88,10 @@ class Controller<T> extends ChangeNotifier {
         _pageItems.addAll(items);
         _pageItemIds.addAll(docs.map((doc) => doc.id));
 
-        if (docs.length < pageSize) {
+        final nItems = docs.length;
+        if (showDebugLogs) Logger().d('$nItems items have been loaded!');
+
+        if (nItems < pageSize) {
           _notifyEmpty();
         } else {
           _startAt = docs.last.data()[orderBy];
@@ -95,18 +102,36 @@ class Controller<T> extends ChangeNotifier {
         isInitialSnap = false;
       } else {
         for (final change in snap.docChanges) {
+          final docId = change.doc.id;
+
           // Ignore this case, as it is not supported.
-          if (change.type == DocumentChangeType.added) continue;
+          if (change.type == DocumentChangeType.added) {
+            Logger().w('Unsupported case: item addition operations '
+                'can only happen in the new item query snapshots! '
+                'Item $docId has not been added to the list.');
+            continue;
+          }
 
-          final itemIndex = _pageItemIds.indexOf(change.doc.id);
+          final isUpdated = change.type == DocumentChangeType.modified;
+          final itemIndex = _pageItemIds.indexOf(docId);
+
           // This should not happen if package usage requirements are met.
-          if (itemIndex == -1) continue;
+          if (itemIndex == -1) {
+            Logger().w('Unsupported case: item $docId has not been '
+                'found among existing items, so it cannot be '
+                '${isUpdated ? 'updated' : 'removed'}!');
+            continue;
+          }
 
-          if (change.type == DocumentChangeType.modified) {
+          if (isUpdated) {
             _pageItems[itemIndex] = itemFromJson(change.doc.data()!);
+
+            if (showDebugLogs) Logger().d('Item $docId has been updated.');
           } else {
             _pageItems.removeAt(itemIndex);
             _pageItemIds.removeAt(itemIndex);
+
+            if (showDebugLogs) Logger().d('Item $docId has been removed.');
           }
         }
         _notify();
@@ -132,6 +157,8 @@ class Controller<T> extends ChangeNotifier {
         if (change.type == DocumentChangeType.added) {
           _newItems.insert(0, itemFromJson(change.doc.data()!));
           _newItemIds.insert(0, docId);
+
+          if (showDebugLogs) Logger().d('Item $docId has been added.');
           continue;
         }
 
@@ -156,9 +183,13 @@ class Controller<T> extends ChangeNotifier {
           } else {
             _newItems[itemIndex] = updatedItem;
           }
+
+          if (showDebugLogs) Logger().d('Item $docId has been updated.');
         } else {
           _newItems.removeAt(itemIndex);
           _newItemIds.removeAt(itemIndex);
+
+          if (showDebugLogs) Logger().d('Item $docId has been removed.');
         }
       }
       _notify();
@@ -188,6 +219,14 @@ class Controller<T> extends ChangeNotifier {
 
     // Remove the listener, as it is not needed anymore.
     scrollController.removeListener(_onScrollPositionUpdate);
+
+    if (showDebugLogs) {
+      if (isEmpty) {
+        Logger().i('There are no items that satisfy your query.');
+      } else {
+        Logger().i('All items have been loaded!');
+      }
+    }
   }
 
   ///
@@ -205,7 +244,7 @@ class Controller<T> extends ChangeNotifier {
 
     // Log the error to make it visible to the developer.
     Logger()
-        .e('An error was thrown by one of the streams', e, StackTrace.current);
+        .e('An error was thrown by one of the streams!', e, StackTrace.current);
   }
 
   ///

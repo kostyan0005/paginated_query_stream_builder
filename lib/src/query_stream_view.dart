@@ -42,6 +42,9 @@ abstract class QueryStreamView<T> extends StatelessWidget {
   ///
   final double minScrollExtentLeft;
 
+  ///
+  final bool showDebugLogs;
+
   final Controller<T> _controller;
 
   QueryStreamView({
@@ -58,6 +61,7 @@ abstract class QueryStreamView<T> extends StatelessWidget {
     this.noItemsFoundIndicatorBuilder,
     this.errorIndicatorBuilder,
     this.minScrollExtentLeft = 500,
+    this.showDebugLogs = false,
   }) : _controller = Controller<T>(
           initialQuery: initialQuery,
           orderBy: orderBy,
@@ -67,6 +71,7 @@ abstract class QueryStreamView<T> extends StatelessWidget {
           allowSnapshotsFromCache: allowSnapshotsFromCache,
           itemFromJson: itemFromJson,
           minScrollExtentLeft: minScrollExtentLeft,
+          showDebugLogs: showDebugLogs,
         );
 
   ///
