@@ -73,7 +73,10 @@ class Controller<T> extends ChangeNotifier {
     _isLoading = true;
     bool isInitialSnap = true;
 
-    if (showDebugLogs) Logger().d('Loading the next $pageSize items...');
+    if (showDebugLogs) {
+      final firstOrNext = _pageSubscriptions.isEmpty ? 'first' : 'next';
+      Logger().d('Loading the $firstOrNext $pageSize items...');
+    }
 
     final nextPageStream = _repo
         .constructQuery(_startAt)
@@ -106,9 +109,14 @@ class Controller<T> extends ChangeNotifier {
 
           // Ignore this case, as it is not supported.
           if (change.type == DocumentChangeType.added) {
-            Logger().w('Unsupported case: item addition operations '
-                'can only happen in the new item query snapshots! '
-                'Item $docId has not been added to the list.');
+            // In case it is a last element of the change list, do not warn
+            // the user, as when the item is removed from the current list,
+            // the first item from the next query matches the current query.
+            if (change != snap.docChanges.last) {
+              Logger().w('Unsupported case: item addition operations '
+                  'can only happen in the new item query snapshots! '
+                  'Item $docId has not been added to the list.');
+            }
             continue;
           }
 
