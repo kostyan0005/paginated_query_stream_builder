@@ -15,24 +15,26 @@ class Repository<T> {
   );
 
   ///
-  Query<Map<String, dynamic>> constructQuery(dynamic startAt) {
-    var query = _initialQuery
-        .orderBy(_orderBy, descending: _descending)
-        .limit(_pageSize);
-    if (startAt != null) query = query.startAt([startAt]);
-    return query;
-  }
-
-  ///
-  Query<Map<String, dynamic>> constructNewItemQuery(dynamic startAt) {
-    var query = _initialQuery.orderBy(_orderBy, descending: _descending);
-    if (startAt != null) query = query.endBefore([startAt]);
-    return query;
-  }
+  Query<Map<String, dynamic>> get _query =>
+      _initialQuery.orderBy(_orderBy, descending: _descending);
 
   ///
   Future<dynamic> getInitialOrderByValue() async {
-    final snap = await constructQuery(null).limit(1).get();
+    final snap = await _query.limit(1).get();
     return snap.size == 1 ? snap.docs.first.data()[_orderBy] : null;
+  }
+
+  ///
+  Query<Map<String, dynamic>> constructQuery(
+      dynamic startAfter, bool isInitial) {
+    assert(startAfter != null);
+    return isInitial
+        ? _query.startAt([startAfter]).limit(_pageSize)
+        : _query.startAfter([startAfter]).limit(_pageSize);
+  }
+
+  ///
+  Query<Map<String, dynamic>> constructNewItemQuery(dynamic startAfter) {
+    return startAfter != null ? _query.endBefore([startAfter]) : _query;
   }
 }

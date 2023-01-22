@@ -44,7 +44,7 @@ class Controller<T> extends ChangeNotifier {
   final List<String> _pageItemIds = [];
   final List<String> _newItemIds = [];
 
-  dynamic _startAt;
+  dynamic _startAfter;
   bool _isLoading = true;
   bool hasMore = true;
   bool hasError = false;
@@ -56,20 +56,20 @@ class Controller<T> extends ChangeNotifier {
 
   ///
   void _setInitialSubscriptions() async {
-    _startAt = await _repo.getInitialOrderByValue();
+    _startAfter = await _repo.getInitialOrderByValue();
 
-    if (_startAt == null) {
+    if (_startAfter == null) {
       _notifyEmpty();
     } else {
-      _addNextSubscription();
+      _addNextSubscription(isInitialQuery: true);
+      scrollController.addListener(_onScrollPositionUpdate);
     }
 
     _addNewItemSubscription();
-    scrollController.addListener(_onScrollPositionUpdate);
   }
 
   ///
-  void _addNextSubscription() {
+  void _addNextSubscription({bool isInitialQuery = false}) {
     _isLoading = true;
     bool isInitialSnap = true;
 
@@ -79,7 +79,7 @@ class Controller<T> extends ChangeNotifier {
     }
 
     final nextPageStream = _repo
-        .constructQuery(_startAt)
+        .constructQuery(_startAfter, isInitialQuery)
         .snapshots(includeMetadataChanges: includeMetadataChanges);
 
     final nextPageSubscription = nextPageStream.listen((snap) {
@@ -97,7 +97,7 @@ class Controller<T> extends ChangeNotifier {
         if (nItems < pageSize) {
           _notifyEmpty();
         } else {
-          _startAt = docs.last.data()[orderBy];
+          _startAfter = docs.last.data()[orderBy];
           _isLoading = false;
           _notify();
         }
@@ -107,12 +107,14 @@ class Controller<T> extends ChangeNotifier {
         for (final change in snap.docChanges) {
           final docId = change.doc.id;
 
-          // Ignore this case, as it is not supported.
           if (change.type == DocumentChangeType.added) {
-            // In case it is a last element of the change list, do not warn
-            // the user, as when the item is removed from the current list,
-            // the first item from the next query matches the current query.
-            if (change != snap.docChanges.last) {
+            if (change.newIndex == pageSize - 1) {
+              // Do not warn about this case, as when the item is removed from
+              // the current query result set, the first item from the next
+              // query matches the current query and gets added to its result
+              // set as the last element.
+            } else {
+              // Warn about this case, as it is not supported.
               Logger().w('Unsupported case: item addition operations '
                   'can only happen in the new item query snapshots! '
                   'Item $docId has not been added to the list.');
@@ -153,13 +155,13 @@ class Controller<T> extends ChangeNotifier {
   ///
   void _addNewItemSubscription() {
     final newItemStream = _repo
-        .constructNewItemQuery(_startAt)
+        .constructNewItemQuery(_startAfter)
         .snapshots(includeMetadataChanges: includeMetadataChanges);
 
     _newItemSubscription = newItemStream.listen((snap) {
       if (!allowSnapshotsFromCache && snap.metadata.isFromCache) return;
 
-      for (final change in snap.docChanges) {
+      for (final change in snap.docChanges.reversed) {
         final docId = change.doc.id;
 
         if (change.type == DocumentChangeType.added) {
