@@ -4,9 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
+import 'query_stream_view.dart';
 import 'repository.dart';
 
+/// The controller for the [QueryStreamView].
 ///
+/// It is responsible for loading more items, updating/deleting the existing
+/// items and maintaining the correct state of the [QueryStreamView].
 class Controller<T> extends ChangeNotifier {
   final String orderBy;
   final int pageSize;
@@ -29,7 +33,7 @@ class Controller<T> extends ChangeNotifier {
     required this.minScrollExtentLeft,
     required this.showDebugLogs,
   }) : _repo = Repository(initialQuery, orderBy, descending, pageSize) {
-    _setInitialSubscriptions();
+    _addInitialSubscriptions();
   }
 
   final ScrollController scrollController = ScrollController();
@@ -54,9 +58,10 @@ class Controller<T> extends ChangeNotifier {
   bool get needsPlusOne => hasMore || hasError;
   bool get _canLoadMore => !_isLoading && hasMore && !hasError;
 
-  ///
-  void _setInitialSubscriptions() async {
-    _startAfter = await _repo.getInitialOrderByValue();
+  /// Determines the initial controller state and adds the initial subscriptions
+  /// and listeners.
+  void _addInitialSubscriptions() async {
+    _startAfter = await _repo.getStartingOrderByValue();
 
     if (_startAfter == null) {
       _notifyEmpty();
@@ -68,7 +73,7 @@ class Controller<T> extends ChangeNotifier {
     _addNewItemSubscription();
   }
 
-  ///
+  /// Adds the subscription for the next portion of items.
   void _addNextSubscription({bool isInitialQuery = false}) {
     _isLoading = true;
     bool isInitialSnap = true;
@@ -152,7 +157,7 @@ class Controller<T> extends ChangeNotifier {
     _pageSubscriptions.add(nextPageSubscription);
   }
 
-  ///
+  /// Adds the subscription for new items.
   void _addNewItemSubscription() {
     final newItemStream = _repo
         .constructNewItemQuery(_startAfter)
@@ -207,7 +212,7 @@ class Controller<T> extends ChangeNotifier {
       ..onError(_handleError);
   }
 
-  ///
+  /// Determines on each scroll position update whether more items need to be loaded.
   void _onScrollPositionUpdate() {
     if (_canLoadMore &&
         scrollController.position.extentAfter < minScrollExtentLeft) {
@@ -215,13 +220,13 @@ class Controller<T> extends ChangeNotifier {
     }
   }
 
-  ///
+  /// Notify about the update to the item list.
   void _notify() {
     items = [..._newItems, ..._pageItems];
     notifyListeners();
   }
 
-  ///
+  /// Notify that either all query items have been loaded or none satisfy the query.
   void _notifyEmpty() {
     hasMore = false;
     _isLoading = false;
@@ -239,7 +244,7 @@ class Controller<T> extends ChangeNotifier {
     }
   }
 
-  ///
+  /// Handles the error and notifies the view about it.
   void _handleError(dynamic e) {
     // Notify that there is an error.
     hasError = true;
@@ -257,7 +262,7 @@ class Controller<T> extends ChangeNotifier {
         .e('An error was thrown by one of the streams!', e, StackTrace.current);
   }
 
-  ///
+  /// Cancels all existing subscriptions.
   void _cancelAllSubscriptions() {
     _newItemSubscription?.cancel();
     for (final subscription in _pageSubscriptions) {

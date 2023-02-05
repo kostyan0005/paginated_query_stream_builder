@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'query_stream_view.dart';
 
-///
+/// A list view that is based on [QueryStreamView].
 ///
 /// To better understand the purpose of any parameters that are not documented,
 /// you can refer to the [ListView.builder] documentation.
