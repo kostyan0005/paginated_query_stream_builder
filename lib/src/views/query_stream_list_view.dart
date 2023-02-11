@@ -1,20 +1,21 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import 'query_stream_view.dart';
+import '../query_stream_view.dart';
 
-/// A grid view that is based on [QueryStreamView].
+/// A list view that is based on [QueryStreamView].
 ///
 /// To better understand the purpose of any parameters that are not documented,
-/// you can refer to the [GridView.builder] documentation.
-class QueryStreamGridView<T> extends QueryStreamView<T> {
+/// you can refer to the [ListView.builder] documentation.
+class QueryStreamListView<T> extends QueryStreamView<T> {
   final Axis scrollDirection;
   final bool reverse;
   final bool? primary;
   final ScrollPhysics? physics;
   final bool shrinkWrap;
   final EdgeInsetsGeometry? padding;
-  final SliverGridDelegate gridDelegate;
+  final double? itemExtent;
+  final Widget? prototypeItem;
   final int? Function(Key)? findChildIndexCallback;
   final bool addAutomaticKeepAlives;
   final bool addRepaintBoundaries;
@@ -25,7 +26,7 @@ class QueryStreamGridView<T> extends QueryStreamView<T> {
   final String? restorationId;
   final Clip clipBehavior;
 
-  QueryStreamGridView({
+  QueryStreamListView({
     super.key,
     required super.baseQuery,
     required super.orderBy,
@@ -40,13 +41,14 @@ class QueryStreamGridView<T> extends QueryStreamView<T> {
     super.errorIndicatorBuilder,
     super.minScrollExtentLeft,
     super.showDebugLogs,
-    required this.gridDelegate,
     this.scrollDirection = Axis.vertical,
     this.reverse = false,
     this.primary,
     this.physics,
     this.shrinkWrap = false,
     this.padding,
+    this.itemExtent,
+    this.prototypeItem,
     this.findChildIndexCallback,
     this.addAutomaticKeepAlives = true,
     this.addRepaintBoundaries = true,
@@ -60,18 +62,19 @@ class QueryStreamGridView<T> extends QueryStreamView<T> {
 
   @override
   Widget buildView(BoxConstraints constraints) {
-    return GridView.builder(
+    return ListView.builder(
       controller: scrollController,
       itemBuilder: buildItem,
       itemCount: itemCount,
       cacheExtent: getCacheExtent(constraints, scrollDirection),
-      gridDelegate: gridDelegate,
       scrollDirection: scrollDirection,
       reverse: reverse,
       primary: primary,
       physics: physics,
       shrinkWrap: shrinkWrap,
       padding: padding,
+      itemExtent: itemExtent,
+      prototypeItem: prototypeItem,
       findChildIndexCallback: findChildIndexCallback,
       addAutomaticKeepAlives: addAutomaticKeepAlives,
       addRepaintBoundaries: addRepaintBoundaries,
