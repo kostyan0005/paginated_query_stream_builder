@@ -2,13 +2,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// The repository responsible for constructing queries.
 class Repository<T> {
-  final Query<Map<String, dynamic>> _initialQuery;
+  final Query<Map<String, dynamic>> _baseQuery;
   final String _orderBy;
   final bool _descending;
   final int _pageSize;
 
   Repository(
-    this._initialQuery,
+    this._baseQuery,
     this._orderBy,
     this._descending,
     this._pageSize,
@@ -16,7 +16,7 @@ class Repository<T> {
 
   /// The query with which the items are extracted.
   Query<Map<String, dynamic>> get _query =>
-      _initialQuery.orderBy(_orderBy, descending: _descending);
+      _baseQuery.orderBy(_orderBy, descending: _descending);
 
   /// Gets the starting value of the field by which the ordering happens.
   Future<dynamic> getStartingOrderByValue() async {

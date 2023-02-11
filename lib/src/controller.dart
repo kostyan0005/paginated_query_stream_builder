@@ -23,7 +23,7 @@ class Controller<T> extends ChangeNotifier {
   final Repository _repo;
 
   Controller({
-    required Query<Map<String, dynamic>> initialQuery,
+    required Query<Map<String, dynamic>> baseQuery,
     required this.orderBy,
     required bool descending,
     required this.pageSize,
@@ -32,7 +32,7 @@ class Controller<T> extends ChangeNotifier {
     required this.itemFromJson,
     required this.minScrollExtentLeft,
     required this.showDebugLogs,
-  }) : _repo = Repository(initialQuery, orderBy, descending, pageSize) {
+  }) : _repo = Repository(baseQuery, orderBy, descending, pageSize) {
     _addInitialSubscriptions();
   }
 
